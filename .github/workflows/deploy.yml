@@ -1,0 +1,23 @@
+name: Stock & Crypto Alerts
+
+on:
+  schedule:
+    - cron: "*/45 * * * *" # Every 45 minutes
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - run: npm install axios node-telegram-bot-api dotenv
+      - run: node script.js
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          STOCK_CHANNEL_ID: ${{ secrets.STOCK_CHANNEL_ID }}
+          CRYPTO_CHANNEL_ID: ${{ secrets.CRYPTO_CHANNEL_ID }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
