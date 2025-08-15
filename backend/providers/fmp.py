@@ -1,7 +1,7 @@
 import requests
 import os
 
-FMP_API_KEY = os.getenv("FMP_API_KEY", "C3tvXXFVYcEg7VBI8ycZsUQrNDCGIGo8")
+FMP_API_KEY = os.environ.get("FMP_API_KEY")
 
 def get_stock_profile(symbol):
     url = f"https://financialmodelingprep.com/api/v3/profile/{symbol}?apikey={FMP_API_KEY}"
