@@ -1,8 +1,9 @@
-import requests
 import os
+import requests
 
-NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY")
+API_KEY = os.getenv("NEWSAPI_API_KEY")
+BASE = "https://newsapi.org/v2/everything"
 
-def get_news(query):
-    url = f"https://newsapi.org/v2/everything?q={query}&apiKey={NEWSAPI_KEY}"
-    return requests.get(url).json()
+def fetch_news(query="stocks"):
+    r = requests.get(BASE, params={"q": query, "apiKey": API_KEY, "pageSize": 10})
+    return r.json().get("articles", []) if r.status_code == 200 else []
