@@ -1,14 +1,29 @@
-import requests
 import os
+import requests
 
-FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY")
+API_KEY = os.getenv("FINNHUB_API_KEY")
+BASE = "https://finnhub.io/api/v1"
 
-def get_stock_quote(symbol):
-    url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={FINNHUB_API_KEY}"
+def fetch_stock_data(exchange="US"):
+    url = f"{BASE}/stock/symbol?exchange={exchange}&token={API_KEY}"
     r = requests.get(url)
-    return r.json()
+    if r.status_code != 200:
+        return []
+    symbols = [s["symbol"] for s in r.json()[:50]]  # grab first 50
 
-def get_company_news(symbol, _from, to):
-    url = f"https://finnhub.io/api/v1/company-news?symbol={symbol}&from={_from}&to={to}&token={FINNHUB_API_KEY}"
-    r = requests.get(url)
-    return r.json()
+    results = []
+    for symbol in symbols:
+        q = requests.get(f"{BASE}/quote?symbol={symbol}&token={API_KEY}").json()
+        if "c" not in q:  # skip if no data
+            continue
+        results.append({
+            "ticker": symbol,
+            "price": q.get("c"),
+            "change_percent": q.get("dp"),
+            "volume": q.get("v"),
+            "open": q.get("o"),
+            "high": q.get("h"),
+            "low": q.get("l"),
+            "prev_close": q.get("pc")
+        })
+    return results
