@@ -1,7 +1,15 @@
 # backend/sentiment.py
-def aggregate_sentiment(ticker):
+import requests
+
+def analyze_sentiment(text):
     """
-    Returns sentiment score -1 to 1 based on social/news signals.
+    Analyzes sentiment of given text using a simple API or local logic.
+    Replace this with any external API if you have keys, e.g., OpenAI, etc.
     """
-    # Placeholder: fetch real sentiment later
-    return 0.3  # slightly positive sentiment
+    text = text.lower()
+    score = 0
+    if any(word in text for word in ["good", "up", "positive", "buy"]):
+        score += 1
+    if any(word in text for word in ["bad", "down", "negative", "sell"]):
+        score -= 1
+    return score
