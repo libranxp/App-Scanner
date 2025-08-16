@@ -1,8 +1,25 @@
-import requests
 import os
+import requests
 
-ALPHAVANTAGE_API_KEY = os.environ.get("ALPHAVANTAGE_API_KEY")
+API_KEY = os.getenv("ALPHAVANTAGE_API_KEY")
+BASE = "https://www.alphavantage.co/query"
 
-def get_rsi(symbol, interval="daily", time_period=14):
-    url = f"https://www.alphavantage.co/query?function=RSI&symbol={symbol}&interval={interval}&time_period={time_period}&series_type=close&apikey={ALPHAVANTAGE_API_KEY}"
-    return requests.get(url).json()
+def fetch_rsi(ticker, interval="15min"):
+    url = f"{BASE}?function=RSI&symbol={ticker}&interval={interval}&time_period=14&series_type=close&apikey={API_KEY}"
+    r = requests.get(url)
+    data = r.json()
+    try:
+        latest = list(data["Technical Analysis: RSI"].values())[0]
+        return float(latest["RSI"])
+    except Exception:
+        return None
+
+def fetch_ema(ticker, time_period=13, interval="15min"):
+    url = f"{BASE}?function=EMA&symbol={ticker}&interval={interval}&time_period={time_period}&series_type=close&apikey={API_KEY}"
+    r = requests.get(url)
+    data = r.json()
+    try:
+        latest = list(data["Technical Analysis: EMA"].values())[0]
+        return float(latest["EMA"])
+    except Exception:
+        return None
