@@ -1,9 +1,10 @@
 import requests
-import os
 
-REDDIT_KEY = os.environ.get("REDDIT_KEY")
+BASE = "https://www.reddit.com/r/wallstreetbets/new.json"
 
-def get_subreddit_posts(subreddit):
-    url = f"https://www.reddit.com/r/{subreddit}/hot.json"
+def fetch_reddit_posts(limit=10):
     headers = {"User-Agent": "Mozilla/5.0"}
-    return requests.get(url, headers=headers).json()
+    r = requests.get(BASE, headers=headers, params={"limit": limit})
+    if r.status_code == 200:
+        return [p["data"]["title"] for p in r.json()["data"]["children"]]
+    return []
