@@ -1,44 +1,60 @@
-name: Scan Markets
+name: Run Scanner
 
 on:
   schedule:
-    - cron: "*/45 8-21 * * 1-5" # Every 45 min between 08:00–21:00 Mon–Fri (BST adjusted in code)
+    # Runs every 45 minutes in BST (note: GitHub Actions cron uses UTC, so we offset by -1 hr during BST)
+    - cron: "*/45 * * * *"
   workflow_dispatch:
 
 jobs:
   scan:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
 
       - name: Run scanner
         env:
+          # API Keys from GitHub Secrets
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
-          TWITTER_BEARER: ${{ secrets.TWITTER_BEARER }}
-          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
-          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-          SANTIMENT_API_KEY: ${{ secrets.SANTIMENT_API_KEY }}
           LUNARCRUSH_API_KEY: ${{ secrets.LUNARCRUSH_API_KEY }}
           COINMARKETCAL_API_KEY: ${{ secrets.COINMARKETCAL_API_KEY }}
-          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+          SANTIMENT_API_KEY: ${{ secrets.SANTIMENT_API_KEY }}
+          COINGLASS_API_KEY: ${{ secrets.COINGLASS_API_KEY }}
+          MESSARI_API_KEY: ${{ secrets.MESSARI_API_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
           TAPING_API: ${{ secrets.TAPING_API }}
+          CMC_KEY: ${{ secrets.CMC_KEY }}
+          TWITTER_KEY: ${{ secrets.TWITTER_KEY }}
+          REDDIT_KEY: ${{ secrets.REDDIT_KEY }}
+
+          # Telegram
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID_STOCKS: ${{ secrets.TELEGRAM_CHAT_ID_STOCKS }}
-          TELEGRAM_CHAT_ID_CRYPTO: ${{ secrets.TELEGRAM_CHAT_ID_CRYPTO }}
+          TELEGRAM_STOCK_CHANNEL_ID: ${{ secrets.TELEGRAM_STOCK_CHANNEL_ID }}
+          TELEGRAM_CRYPTO_CHANNEL_ID: ${{ secrets.TELEGRAM_CRYPTO_CHANNEL_ID }}
+
         run: |
           python backend/scanner.py
+
+      - name: Commit and push updated data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/data/*.json
+          git commit -m "Update scanner data [skip ci]" || echo "No changes to commit"
+          git push
