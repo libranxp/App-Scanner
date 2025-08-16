@@ -1,12 +1,10 @@
-import requests
 import os
+import requests
 
-POLYGON_API_KEY = os.environ.get("POLYGON_API_KEY")
+API_KEY = os.getenv("POLYGON_API_KEY")
+BASE = "https://api.polygon.io/v2"
 
-def get_ticker_details(ticker):
-    url = f"https://api.polygon.io/v3/reference/tickers/{ticker}?apiKey={POLYGON_API_KEY}"
-    return requests.get(url).json()
-
-def get_previous_close(ticker):
-    url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?apiKey={POLYGON_API_KEY}"
-    return requests.get(url).json()
+def fetch_aggregates(ticker="AAPL", multiplier=1, timespan="day", limit=5):
+    url = f"{BASE}/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/2023-01-01/2023-12-31"
+    r = requests.get(url, params={"apiKey": API_KEY, "limit": limit})
+    return r.json() if r.status_code == 200 else {}
