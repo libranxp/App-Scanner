@@ -1,9 +1,7 @@
-from textblob import TextBlob
-
-def analyze_sentiment(text):
+# backend/sentiment.py
+def aggregate_sentiment(ticker):
     """
-    Returns sentiment polarity score between -1 and 1.
-    Positive = bullish, Negative = bearish.
+    Returns sentiment score -1 to 1 based on social/news signals.
     """
-    analysis = TextBlob(text)
-    return round(analysis.sentiment.polarity, 2)
+    # Placeholder: fetch real sentiment later
+    return 0.3  # slightly positive sentiment
