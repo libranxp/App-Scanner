@@ -1,8 +1,10 @@
-import requests
 import os
+import requests
 
-LUNARCRUSH_API_KEY = os.environ.get("LUNARCRUSH_API_KEY")
+API_KEY = os.getenv("LUNARCRUSH_API_KEY")
+BASE = "https://lunarcrush.com/api3"
 
-def get_lunarcrush_assets(symbol):
-    url = f"https://api.lunarcrush.com/v2?data=assets&key={LUNARCRUSH_API_KEY}&symbol={symbol}"
-    return requests.get(url).json()
+def fetch_social_data(symbol="BTC"):
+    url = f"{BASE}/assets"
+    r = requests.get(url, params={"data": "assets", "symbol": symbol, "key": API_KEY})
+    return r.json() if r.status_code == 200 else {}
