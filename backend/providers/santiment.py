@@ -1,12 +1,24 @@
-import requests
 import os
+import requests
 
-SANTIMENT_API_KEY = os.environ.get("SANTIMENT_API_KEY")
+API_KEY = os.getenv("SANTIMENT_API_KEY")
+BASE = "https://api.santiment.net/graphql"
 
-def get_social_volume(asset):
-    url = f"https://api.santiment.net/graphql"
-    headers = {"Authorization": f"Apikey {SANTIMENT_API_KEY}"}
-    query = {
-        "query": f'{{ getMetric(metric: "social_volume_total"){{ timeseriesData(slug: "{asset}", from: "2023-07-01T00:00:00Z", to: "2023-07-02T00:00:00Z"){{ datetime, value }} }} }}'
+def fetch_sentiment(symbol="BTC"):
+    query = """
+    {
+      getMetric(metric: "social_volume_total") {
+        timeseriesData(
+          slug: "bitcoin",
+          from: "2023-01-01T00:00:00Z",
+          to: "2023-12-31T00:00:00Z",
+          interval: "1d"
+        ) {
+          value
+          datetime
+        }
+      }
     }
-    return requests.post(url, json=query, headers=headers).json()
+    """
+    r = requests.post(BASE, json={"query": query}, headers={"Authorization": f"Apikey {API_KEY}"})
+    return r.json() if r.status_code == 200 else {}
