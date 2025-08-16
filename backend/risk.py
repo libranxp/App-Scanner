@@ -1,13 +1,20 @@
-def calculate_risk(entry_price, atr, risk_percent=1, account_size=10000):
+# backend/risk.py
+def calculate_risk(price, ai_score, account_balance=1000):
     """
-    Calculates stop loss, take profit, and position size based on ATR.
+    Returns stop-loss, take-profit, and recommended position size.
     """
-    dollar_risk = account_size * (risk_percent / 100)
-    stop_loss = entry_price - atr
-    position_size = dollar_risk / (entry_price - stop_loss)
-    take_profit = entry_price + (2 * atr)
-    return {
-        "stop_loss": round(stop_loss, 2),
-        "take_profit": round(take_profit, 2),
-        "position_size": int(position_size)
-    }
+    risk_pct = 0.02  # risk 2% per trade
+    position_size = round(account_balance * risk_pct, 2)
+
+    # Determine SL/TP based on AI score
+    if ai_score >= 7:
+        sl = round(price * 0.97, 2)
+        tp = round(price * 1.08, 2)
+    elif ai_score <= 4:
+        sl = round(price * 0.99, 2)
+        tp = round(price * 1.03, 2)
+    else:
+        sl = round(price * 0.98, 2)
+        tp = round(price * 1.05, 2)
+
+    return sl, tp, position_size
