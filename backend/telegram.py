@@ -1,24 +1,21 @@
-# backend/telegram.py
-import requests
 import os
+import requests
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-STOCK_CHANNEL = os.getenv("TELEGRAM_STOCK_CHANNEL_ID")
-CRYPTO_CHANNEL = os.getenv("TELEGRAM_CRYPTO_CHANNEL_ID")
 
-def send_telegram_message(message, channel="stock"):
-    if channel == "stock":
-        chat_id = STOCK_CHANNEL
-    else:
-        chat_id = CRYPTO_CHANNEL
-    if not BOT_TOKEN or not chat_id:
-        print("Telegram bot token or chat ID not set.")
+def send_telegram_alert(channel_id, data, asset_type):
+    if not channel_id:
         return
+    
+    msg = f"""
+🚨 {asset_type.upper()} ALERT 🚨
+{data.get('ticker', data.get('symbol'))}
+💵 Price: {data['price']} ({data['change_percent']}%)
+📊 RSI: {data['rsi']} | RVOL: {data['rvol']} | VWAP Prox: {data['vwap_proximity']}
+🤖 AI Score: {data['ai_score']} ({data['reason']})
+⚠️ Risk: {data['risk']}
+🔗 [Sentiment]({data['sentiment_link']}) | [Catalyst]({data['catalyst_link']}) | [News]({data['news_link']}) | [TradingView]({data['tradingview_link']})
+"""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
-    try:
-        response = requests.post(url, data=data)
-        if response.status_code != 200:
-            print("Telegram message failed:", response.text)
-    except Exception as e:
-        print("Telegram error:", e)
+    payload = {"chat_id": channel_id, "text": msg, "parse_mode": "Markdown"}
+    requests.post(url, json=payload)
