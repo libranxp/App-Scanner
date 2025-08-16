@@ -1,42 +1,99 @@
-# backend/scanner.py
-import json
 import os
-from backend.sentiment import analyze_sentiment
-from backend.telegram import send_telegram_message
+import json
+import time
+from datetime import datetime, timedelta
 
-SIGNALS_FILE = "signals.json"
+from backend.providers.finnhub import fetch_stock_data
+from backend.providers.coingecko import fetch_crypto_data
+from backend.sentiment import sentiment_score
+from backend.ai_scoring import ai_score
+from backend.risk import risk_assessment
+from backend.telegram import send_telegram_alert
 
-def fetch_stocks():
-    # Replace with API calls using your keys (FMP, Polygon, Finnhub, etc.)
-    # Returns list of dicts: {"ticker": "AAPL", "news": "Apple earnings report positive"}
-    return []
+# ENV vars
+STOCK_CHANNEL = os.getenv("TELEGRAM_STOCK_CHANNEL_ID")
+CRYPTO_CHANNEL = os.getenv("TELEGRAM_CRYPTO_CHANNEL_ID")
 
-def fetch_crypto():
-    # Replace with API calls using your keys (CoinGecko, CoinMarketCal, LunarCrush)
-    return []
+TRIGGER_LOG = "docs/data/trigger_log.json"
+STOCK_OUTPUT = "docs/data/latest_stocks.json"
+CRYPTO_OUTPUT = "docs/data/latest_crypto.json"
 
-def process_assets(assets, asset_type="stock"):
-    signals = []
-    for asset in assets:
-        text = asset.get("news", "")
-        score = analyze_sentiment(text)
-        if score != 0:
-            signals.append({"symbol": asset.get("ticker"), "score": score, "news": text})
-            send_telegram_message(f"{asset.get('ticker')}: {text}", channel=asset_type)
-    return signals
+# ✅ load last alerts to prevent duplicates
+def load_trigger_log():
+    if not os.path.exists(TRIGGER_LOG):
+        return {}
+    with open(TRIGGER_LOG, "r") as f:
+        return json.load(f)
 
-def main():
-    stocks = fetch_stocks()
-    crypto = fetch_crypto()
+def save_trigger_log(log):
+    with open(TRIGGER_LOG, "w") as f:
+        json.dump(log, f, indent=2)
 
-    stock_signals = process_assets(stocks, "stock")
-    crypto_signals = process_assets(crypto, "crypto")
+def passes_stock_filters(stock):
+    return (
+        stock["price"] > 0.04
+        and stock["volume"] > 500_000
+        and stock["change_percent"] > 1
+        and stock["rvol"] > 1.2
+        and 45 <= stock["rsi"] <= 75
+        and stock["ema5"] > stock["ema13"] > stock["ema50"]
+        and abs(stock["vwap_proximity"]) <= 0.015
+        and stock["sentiment"] >= 0.6
+        and not stock["pump_flag"]
+    )
 
-    all_signals = {"stocks": stock_signals, "crypto": crypto_signals}
+def passes_crypto_filters(coin):
+    return (
+        0.001 <= coin["price"] <= 100
+        and coin["volume"] > 10_000_000
+        and 2 <= coin["change_percent"] <= 20
+        and 10_000_000 <= coin["market_cap"] <= 5_000_000_000
+        and 50 <= coin["rsi"] <= 70
+        and coin["rvol"] > 2
+        and coin["ema5"] > coin["ema13"] > coin["ema50"]
+        and abs(coin["vwap_proximity"]) <= 0.02
+        and coin["sentiment"] >= 0.6
+        and not coin["pump_flag"]
+    )
 
-    with open(SIGNALS_FILE, "w") as f:
-        json.dump(all_signals, f, indent=2)
-    print("Signals updated.")
+def run_scan():
+    log = load_trigger_log()
+    now = datetime.utcnow()
+
+    stocks = fetch_stock_data()
+    cryptos = fetch_crypto_data()
+
+    stock_alerts, crypto_alerts = [], []
+
+    # 🔎 STOCKS
+    for stock in stocks:
+        if passes_stock_filters(stock):
+            if stock["ticker"] not in log or now - datetime.fromisoformat(log[stock["ticker"]]) > timedelta(hours=6):
+                stock["ai_score"] = ai_score(stock)
+                stock["risk"] = risk_assessment(stock)
+                stock["reason"] = "Strong RSI + volume + catalyst validation"
+                stock_alerts.append(stock)
+                log[stock["ticker"]] = now.isoformat()
+                send_telegram_alert(STOCK_CHANNEL, stock, "stock")
+
+    # 🔎 CRYPTOS
+    for coin in cryptos:
+        if passes_crypto_filters(coin):
+            if coin["symbol"] not in log or now - datetime.fromisoformat(log[coin["symbol"]]) > timedelta(hours=6):
+                coin["ai_score"] = ai_score(coin)
+                coin["risk"] = risk_assessment(coin)
+                coin["reason"] = "Strong RSI + sentiment + catalyst validation"
+                crypto_alerts.append(coin)
+                log[coin["symbol"]] = now.isoformat()
+                send_telegram_alert(CRYPTO_CHANNEL, coin, "crypto")
+
+    save_trigger_log(log)
+
+    # ✅ save results for dashboard
+    with open(STOCK_OUTPUT, "w") as f:
+        json.dump(stock_alerts, f, indent=2)
+    with open(CRYPTO_OUTPUT, "w") as f:
+        json.dump(crypto_alerts, f, indent=2)
 
 if __name__ == "__main__":
-    main()
+    run_scan()
