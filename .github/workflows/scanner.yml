@@ -1,22 +1,23 @@
 name: Run Scanner
 
 on:
+  workflow_dispatch:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes
-  workflow_dispatch:          # allow manual run from Actions tab
+    - cron: "0 * * * *"   # every hour
 
 jobs:
-  scan:
+  run-scanner:
     runs-on: ubuntu-latest
+
     permissions:
-      contents: read   # safe (no pushing to repo)
+      contents: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -39,10 +40,8 @@ jobs:
           TELEGRAM_STOCK_CHANNEL_ID: ${{ secrets.TELEGRAM_STOCK_CHANNEL_ID }}
           TELEGRAM_CRYPTO_CHANNEL_ID: ${{ secrets.TELEGRAM_CRYPTO_CHANNEL_ID }}
 
-      - name: Upload logs (trigger_log.json if exists)
-        if: always()
-        uses: actions/upload-artifact@v3
+      - name: Upload log artifact
+        uses: actions/upload-artifact@v4   # ✅ upgraded from v3 → v4
         with:
-          name: scanner-logs
+          name: scanner-log
           path: trigger_log.json
-          if-no-files-found: ignore
