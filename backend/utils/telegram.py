@@ -1,15 +1,12 @@
 # backend/utils/telegram.py
-# Utility for sending Telegram messages
-
 import os
 import requests
-import json
 
 
 def send_telegram_message(alert: dict):
     """
-    Send an alert to Telegram channel.
-    Requires environment variables:
+    Send alert message to Telegram channel.
+    Requires:
       - TELEGRAM_BOT_TOKEN
       - TELEGRAM_STOCK_CHANNEL_ID or TELEGRAM_CRYPTO_CHANNEL_ID
     """
@@ -18,16 +15,14 @@ def send_telegram_message(alert: dict):
     crypto_channel = os.getenv("TELEGRAM_CRYPTO_CHANNEL_ID")
 
     if not token:
-        print("⚠️ TELEGRAM_BOT_TOKEN not set, skipping message")
+        print("⚠️ No TELEGRAM_BOT_TOKEN set, skipping alert")
         return
 
-    # Decide which chat_id to use
     chat_id = stock_channel if alert.get("asset_type") == "stock" else crypto_channel
     if not chat_id:
-        print("⚠️ No TELEGRAM channel ID provided for", alert.get("asset_type"))
+        print("⚠️ No Telegram channel ID set for", alert.get("asset_type"))
         return
 
-    # Build message text
     text = (
         f"📢 Alert: {alert.get('symbol')}\n"
         f"Type: {alert.get('asset_type')}\n"
@@ -37,12 +32,10 @@ def send_telegram_message(alert: dict):
         f"Risk: {alert.get('risk')}"
     )
 
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text}
-
     try:
-        r = requests.post(url, json=payload, timeout=10)
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        r = requests.post(url, json={"chat_id": chat_id, "text": text}, timeout=10)
         if r.status_code != 200:
-            print(f"⚠️ Telegram error {r.status_code}: {r.text}")
+            print("⚠️ Telegram error:", r.text)
     except Exception as e:
-        print("⚠️ Failed to send Telegram message:", e)
+        print("⚠️ Telegram send failed:", e)
