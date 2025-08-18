@@ -1,0 +1,25 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+
+# Logs and artifacts
+*.log
+*.json
+
+# Specifically ignore scanner logs
+trigger_log.json
+
+# IDE and editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
