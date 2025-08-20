@@ -17,11 +17,12 @@ def run_scan():
         stocks = fmp.fetch_most_active()
     except Exception as e:
         print(f"⚠️ Error fetching stock data: {e}")
+        update_dashboard([])  # write empty so frontend won't crash
         return
 
     if not stocks:
         print("⚠️ No data returned from API")
-        update_dashboard([])  # write empty dashboard to avoid frontend crash
+        update_dashboard([])
         return
 
     results = []
@@ -41,7 +42,7 @@ def run_scan():
         }
         results.append(entry)
 
-        # ✅ Send live alert
+        # ✅ Send alert for each stock
         msg = f"📊 {symbol} | Price: {price} | Change: {change}%"
         send_telegram_message(msg, channel="stock")
 
