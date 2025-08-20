@@ -1,63 +1,45 @@
-# backend/scanner.py
-import os
 import json
+import os
+from datetime import datetime
 from backend.providers import fmp
-from backend.sentiment import sentiment_score
-from backend.ai_scoring import ai_score
-from backend.risk import risk_assessment
 from backend.utils.telegram import send_telegram_message
 
+DASHBOARD_FILE = "dashboard.json"
 
-TRIGGER_LOG = "trigger_log.json"
-
-
-def load_trigger_log():
-    if not os.path.exists(TRIGGER_LOG):
-        return {}
-    try:
-        with open(TRIGGER_LOG, "r") as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-
-def save_trigger_log(log):
-    with open(TRIGGER_LOG, "w") as f:
-        json.dump(log, f)
-
+def update_dashboard(data):
+    """Write latest stock data to dashboard.json"""
+    with open(DASHBOARD_FILE, "w") as f:
+        json.dump(data, f, indent=2)
 
 def run_scan():
-    log = load_trigger_log()
+    print("🚀 Running live scan...")
+    stocks = fmp.fetch_most_active()
 
-    # ✅ get real most active tickers (no samples)
-    stock_symbols = fmp.fetch_most_active(limit=20)
+    if not stocks:
+        print("⚠️ No stock data fetched")
+        return
 
-    for symbol in stock_symbols:
-        try:
-            sentiment = sentiment_score(symbol)
-            ai = ai_score(symbol)
-            risk = risk_assessment(symbol)
+    results = []
+    for stock in stocks:
+        symbol = stock.get("symbol")
+        price = stock.get("price")
+        change = stock.get("changesPercentage")
 
-            alert = {
-                "symbol": symbol,
-                "asset_type": "stock",
-                "price": "N/A",  # you can extend this with price fetcher
-                "sentiment": sentiment,
-                "ai_score": ai,
-                "risk": risk,
-            }
+        entry = {
+            "symbol": symbol,
+            "price": price,
+            "change": change,
+            "time": datetime.utcnow().isoformat()
+        }
+        results.append(entry)
 
-            # send to telegram
-            send_telegram_message(alert)
+        # ✅ Send to Telegram
+        msg = f"📊 {symbol} | Price: {price} | Change: {change}%"
+        send_telegram_message(msg, channel="stock")
 
-            # update log
-            log[symbol] = alert
-
-        except Exception as e:
-            print(f"⚠️ Error scanning {symbol}:", e)
-
-    save_trigger_log(log)
-
+    # ✅ Update dashboard file
+    update_dashboard(results)
+    print(f"✅ Dashboard updated with {len(results)} entries")
 
 if __name__ == "__main__":
     run_scan()
