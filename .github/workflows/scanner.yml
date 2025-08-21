@@ -3,7 +3,7 @@ name: Run Scanner
 on:
   schedule:
     - cron: '*/10 * * * *'  # every 10 minutes
-  workflow_dispatch:         # allows manual run
+  workflow_dispatch:         # allows manual trigger
 
 jobs:
   run-scanner:
@@ -13,7 +13,7 @@ jobs:
       FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
 
     steps:
       - name: Checkout repository
@@ -29,13 +29,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests pandas
 
-      - name: Run scanner
+      - name: Run Scanner
         run: python -m backend.scanner
 
-      - name: Commit dashboard.json
+      - name: Commit and push dashboard.json
+        if: success() && env.PAT_TOKEN != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f dashboard.json
           git commit -m "Update dashboard data [skip ci]" || echo "No changes"
-          git push https://x-access-token:${GITHUB_PAT}@github.com/${{ github.repository }} HEAD:main
+          git push https://x-access-token:${PAT_TOKEN}@github.com/${{ github.repository }} HEAD:main
