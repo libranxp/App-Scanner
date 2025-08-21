@@ -1,8 +1,12 @@
-def run_scan():
-    print("🔍 Fetching live stock data...")
-    stocks = fmp.fetch_most_active()
+import json
+import os
 
-    if not stocks:
-        print("⚠️ No data fetched, saving empty dashboard instead")
-        save_dashboard([])
-        return  # don't raise error, just exit cleanly
+def save_dashboard(stocks):
+    """Always save dashboard.json at repo root"""
+    dashboard_path = os.path.join(os.path.dirname(__file__), "..", "dashboard.json")
+    dashboard_path = os.path.abspath(dashboard_path)
+
+    with open(dashboard_path, "w") as f:
+        json.dump(stocks, f, indent=2)
+
+    print(f"✅ Dashboard data saved to {dashboard_path}")
