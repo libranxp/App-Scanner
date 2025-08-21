@@ -1,11 +1,46 @@
-.github/
-  workflows/
-    scanner.yml       # workflow file
-backend/
-  providers/
-    fmp.py            # FMP data fetcher
-  utils/
-    telegram.py       # Telegram sender
-  scanner.py          # main scanner
-dashboard.json        # gets generated automatically
-dashboard.html        # the dashboard page (you open this in browser)
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Stock Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #f4f4f4; }
+  </style>
+</head>
+<body>
+  <h1>📊 Live Stock Dashboard</h1>
+  <table id="stockTable">
+    <thead>
+      <tr><th>Symbol</th><th>Price</th><th>Change %</th><th>Volume</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function loadData() {
+      try {
+        const res = await fetch("dashboard.json?_=" + Date.now());
+        const data = await res.json();
+        const tbody = document.querySelector("#stockTable tbody");
+        tbody.innerHTML = "";
+        data.forEach(stock => {
+          const row = `<tr>
+            <td>${stock.symbol}</td>
+            <td>${stock.price}</td>
+            <td>${stock.change}</td>
+            <td>${stock.volume}</td>
+          </tr>`;
+          tbody.innerHTML += row;
+        });
+      } catch (e) {
+        console.error("Failed to load dashboard", e);
+      }
+    }
+    loadData();
+    setInterval(loadData, 60000); // refresh every 60s
+  </script>
+</body>
+</html>
