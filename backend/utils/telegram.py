@@ -1,18 +1,17 @@
 import os
 import requests
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-def send_message(text: str):
-    if not BOT_TOKEN or not CHAT_ID:
-        print("⚠️ Telegram not configured, skipping alert")
+def send_alert(message):
+    if not TOKEN or not CHAT_ID:
+        print("Telegram credentials missing")
         return
-
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    try:
-        r = requests.post(url, data={"chat_id": CHAT_ID, "text": text})
-        if r.status_code != 200:
-            print(f"❌ Telegram error: {r.text}")
-    except Exception as e:
-        print(f"❌ Telegram exception: {e}")
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    payload = {"chat_id": CHAT_ID, "text": message}
+    r = requests.post(url, data=payload)
+    if r.status_code == 200:
+        print("📩 Telegram alert sent:", message)
+    else:
+        print("Failed to send Telegram alert:", r.text)
