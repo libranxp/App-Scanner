@@ -1,19 +1,28 @@
-import os
-import json
-from datetime import datetime
+import datetime
 import pytz
+import logging
 
-BST = pytz.timezone("Europe/London")
+# Set up logging
+logging.basicConfig(
+    filename="scanner.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
-def load_json(path):
-    if os.path.exists(path):
-        with open(path, 'r') as f:
-            return json.load(f)
-    return {}
+def log_trigger(ticker, reason, score):
+    msg = f"Triggered: {ticker} | Reason: {reason} | Score: {score}"
+    logging.info(msg)
+    print(msg)  # Optional: for console visibility
 
-def save_json(path, data):
-    with open(path, 'w') as f:
-        json.dump(data, f, indent=2)
+def get_timestamp():
+    tz = pytz.timezone("Europe/London")
+    return datetime.datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-def current_time_str():
-    return datetime.now(BST).strftime('%Y-%m-%d %H:%M:%S BST')
+def format_price(value):
+    return f"${value:.2f}"
+
+def percent_change(old, new):
+    try:
+        return round(((new - old) / old) * 100, 2)
+    except ZeroDivisionError:
+        return 0.0
