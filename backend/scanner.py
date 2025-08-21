@@ -1,33 +1,25 @@
+import os
 import json
-import time
 from backend.providers import fmp
 from backend.utils import telegram
 
-DASHBOARD_FILE = "dashboard.json"
-
 def run_scan():
-    print("🔍 Fetching live stock data...")
-    try:
-        stocks = fmp.fetch_most_active()  # fetch live data from FMP
-    except Exception as e:
-        print("Error fetching stock data:", e)
-        stocks = []
+    print("🔍 Running premarket scanner...")
+    
+    # Fetch stocks dynamically, no pre-picked tickers
+    stocks = fmp.fetch_premarket()  
 
-    # Save to dashboard.json
-    try:
-        with open(DASHBOARD_FILE, "w") as f:
-            json.dump(stocks, f, indent=2)
-        print("✅ Dashboard updated")
-    except Exception as e:
-        print("Error writing dashboard:", e)
+    # Save to dashboard JSON
+    dashboard_file = "dashboard.json"
+    with open(dashboard_file, "w") as f:
+        json.dump(stocks, f, indent=2)
+    print(f"✅ Dashboard saved: {dashboard_file}")
 
-    # Send Telegram alerts
-    try:
-        for stock in stocks:
-            if stock.get("changePercent", 0) > 5:  # example alert criteria
-                telegram.send_alert(f"{stock['ticker']} moved {stock['changePercent']}%")
-    except Exception as e:
-        print("Error sending Telegram alerts:", e)
+    # Send Telegram notification
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if chat_id and token:
+        telegram.send_message(token, chat_id, "Scanner run complete! 📊")
 
 if __name__ == "__main__":
     run_scan()
