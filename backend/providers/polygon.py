@@ -1,10 +1,27 @@
-import os
-import requests
+# backend/providers/polygon.py
+import os, requests
 
-API_KEY = os.getenv("POLYGON_API_KEY")
-BASE = "https://api.polygon.io/v2"
+API = os.getenv("POLYGON_API_KEY")
 
-def fetch_aggregates(ticker="AAPL", multiplier=1, timespan="day", limit=5):
-    url = f"{BASE}/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/2023-01-01/2023-12-31"
-    r = requests.get(url, params={"apiKey": API_KEY, "limit": limit})
-    return r.json() if r.status_code == 200 else {}
+def fetch_gainers(limit: int = 50):
+    """
+    Live top gainers snapshot (no pre-picked tickers).
+    """
+    url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/gainers?apiKey={API}"
+    r = requests.get(url, timeout=30)
+    r.raise_for_status()
+    j = r.json()
+    out = []
+    for it in j.get("tickers", []):
+        sym = it.get("ticker")
+        last = (it.get("lastTrade", {}) or {}).get("p") or it.get("day", {}).get("c")
+        chg = (it.get("day", {}) or {}).get("pc")
+        vol = (it.get("day", {}) or {}).get("v")
+        if not sym or last is None: continue
+        out.append({
+            "symbol": sym.upper(),
+            "price": float(last),
+            "change_pct": float(chg or 0.0),
+            "volume": float(vol or 0.0),
+        })
+    return out[:limit]
