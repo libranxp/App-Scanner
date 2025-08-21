@@ -1,12 +1,44 @@
-    - name: Commit dashboard update
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
+name: Stock Scanner
 
-        if [ -f dashboard.json ]; then
-          git add -f dashboard.json
-          git commit -m "Update dashboard data [skip ci]" || echo "No changes"
-          git push
-        else
-          echo "⚠️ dashboard.json not found, skipping commit"
-        fi
+on:
+  schedule:
+    - cron: "*/15 * * * *"  # runs every 15 minutes
+  workflow_dispatch:        # allows manual trigger
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Run scanner
+        env:
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python backend/scanner.py
+
+      - name: Commit dashboard update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [ -f dashboard.json ]; then
+            git add -f dashboard.json dashboard.html
+            git commit -m "Update dashboard data [skip ci]" || echo "No changes"
+            git push
+          else
+            echo "⚠️ dashboard.json not found, skipping commit"
+          fi
