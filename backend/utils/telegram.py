@@ -1,16 +1,18 @@
-# backend/utils/telegram.py
-import os
 import requests
+import os
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_STOCK_CHANNEL_ID")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-def send_telegram_message(message: str):
+def send_telegram_message(text: str):
     if not BOT_TOKEN or not CHAT_ID:
-        print("Telegram credentials not set")
+        print("⚠️ Telegram not configured")
         return
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": CHAT_ID, "text": text}
     try:
-        requests.post(url, data={"chat_id": CHAT_ID, "text": message})
+        r = requests.post(url, json=payload, timeout=10)
+        r.raise_for_status()
+        print("✅ Telegram alert sent")
     except Exception as e:
-        print(f"Telegram error: {e}")
+        print(f"❌ Telegram error: {e}")
