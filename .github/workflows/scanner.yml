@@ -1,70 +1,86 @@
-name: Scanner (every 45min BST)
+name: Scanner (every 45 min)
 
 on:
+  # Runs every 45 minutes, all day (in UTC). Keeps it simple + reliable.
   schedule:
-    # GitHub Actions runs in UTC. BST = UTC+1.
-    # 08:00–21:00 BST == 07:00–20:00 UTC, every 45 minutes.
-    - cron: '0/45 7-20 * * *'
+    - cron: "*/45 * * * *"
+  # Let you run it on-demand from Actions tab.
   workflow_dispatch:
+  # Also run when you change scanner or provider files.
+  push:
+    branches: [ main ]
+    paths:
+      - "scanner.py"
+      - "backend/**"
+      - ".github/workflows/scanner.yml"
+      - "requirements.txt"
+
+permissions:
+  contents: write   # needed to push dashboard.json
+
+concurrency:
+  group: scanner
+  cancel-in-progress: false
 
 jobs:
   run-scanner:
     runs-on: ubuntu-latest
-
-    env:
-      # Stock/Crypto provider keys
-      FMP_API_KEY:               ${{ secrets.FMP_API_KEY }}
-      FINNHUB_API_KEY:           ${{ secrets.FINNHUB_API_KEY }}
-      ALPHAVANTAGE_API_KEY:      ${{ secrets.ALPHAVANTAGE_API_KEY }}
-      POLYGON_API_KEY:           ${{ secrets.POLYGON_API_KEY }}
-      NEWSAPI_API_KEY:           ${{ secrets.NEWSAPI_API_KEY }}
-      COINMARKETCAL_API_KEY:     ${{ secrets.COINMARKETCAL_API_KEY }}
-      LUNARCRUSH_API_KEY:        ${{ secrets.LUNARCRUSH_API_KEY }}
-      MESSARI_API_KEY:           ${{ secrets.MESSARI_API_KEY }}
-      SANTIMENT_API_KEY:         ${{ secrets.SANTIMENT_API_KEY }}
-      COINGLASS_API_KEY:         ${{ secrets.COINGLASS_API_KEY }}
-      REDDIT_CLIENT_ID:          ${{ secrets.REDDIT_CLIENT_ID }}
-      REDDIT_SECRET:             ${{ secrets.REDDIT_SECRET }}
-      TWITTER_BEARER_TOKEN:      ${{ secrets.TWITTER_BEARER_TOKEN }}
-
-      # Telegram
-      TELEGRAM_BOT_TOKEN:        ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_STOCKS_CHANNEL_ID:${{ secrets.TELEGRAM_STOCKS_CHANNEL_ID }}
-      TELEGRAM_CRYPTO_CHANNEL_ID:${{ secrets.TELEGRAM_CRYPTO_CHANNEL_ID }}
-
-      # GitHub PAT to push dashboard.json
-      PAT_TOKEN:                 ${{ secrets.PAT_TOKEN }}
-
-      # Optional scan limits (to reduce API usage/rate limits)
-      SCAN_LIMIT_STOCKS: "30"
-      SCAN_LIMIT_CRYPTO: "30"
-
     steps:
-      - name: Checkout
+      - name: Checkout (no credentials, we’ll push with PAT)
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
 
-      - name: Setup Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: Install deps
+      - name: Install requirements
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run scanner
-        run: python scanner.py
-
-      - name: Commit & push dashboard.json
-        if: success() && env.PAT_TOKEN != ''
+        env:
+          # === Provider keys ===
+          FMP_API_KEY:               ${{ secrets.FMP_API_KEY }}
+          FINNHUB_API_KEY:           ${{ secrets.FINNHUB_API_KEY }}
+          ALPHAVANTAGE_API_KEY:      ${{ secrets.ALPHAVANTAGE_API_KEY }}
+          POLYGON_API_KEY:           ${{ secrets.POLYGON_API_KEY }}
+          NEWSAPI_API_KEY:           ${{ secrets.NEWSAPI_API_KEY }}
+          COINMARKETCAL_API_KEY:     ${{ secrets.COINMARKETCAL_API_KEY }}
+          LUNARCRUSH_API_KEY:        ${{ secrets.LUNARCRUSH_API_KEY }}
+          MESSARI_API_KEY:           ${{ secrets.MESSARI_API_KEY }}
+          SANTIMENT_API_KEY:         ${{ secrets.SANTIMENT_API_KEY }}
+          COINGLASS_API_KEY:         ${{ secrets.COINGLASS_API_KEY }}
+          REDDIT_CLIENT_ID:          ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_SECRET:             ${{ secrets.REDDIT_SECRET }}
+          TWITTER_BEARER_TOKEN:      ${{ secrets.TWITTER_BEARER_TOKEN }}
+          # === Telegram ===
+          TELEGRAM_BOT_TOKEN:        ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_STOCKS_CHANNEL_ID:${{ secrets.TELEGRAM_STOCKS_CHANNEL_ID }}
+          TELEGRAM_CRYPTO_CHANNEL_ID:${{ secrets.TELEGRAM_CRYPTO_CHANNEL_ID }}
+          # === Optional scan throttles ===
+          SCAN_LIMIT_STOCKS: "30"
+          SCAN_LIMIT_CRYPTO: "30"
         run: |
-          if [ -f "dashboard.json" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add -f dashboard.json
-            git commit -m "Update dashboard data [skip ci]" || echo "No changes"
-            git push https://x-access-token:${PAT_TOKEN}@github.com/${{ github.repository }} HEAD:main
-          else
-            echo "dashboard.json not found, skipping commit."
+          python scanner.py
+          test -f dashboard.json && echo "dashboard.json created ✅" || (echo "dashboard.json missing ❌" && exit 1)
+
+      - name: Commit & push dashboard.json to main (using PAT_TOKEN)
+        if: success()
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          if [ -z "$PAT_TOKEN" ]; then
+            echo "❌ PAT_TOKEN secret is missing. Add it in repo Settings → Secrets → Actions."
+            exit 1
           fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f dashboard.json
+          git commit -m "Update dashboard data [skip ci]" || echo "No changes to commit"
+          # Push with PAT (avoids branch protection issues with GITHUB_TOKEN)
+          git push "https://x-access-token:${PAT_TOKEN}@github.com/${{ github.repository }}" HEAD:main
