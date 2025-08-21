@@ -1,24 +1,21 @@
-# backend/providers/fmp.py
-import os
 import requests
+import os
 
-API_KEY = os.getenv("FMP_API_KEY", "")
+API_KEY = os.getenv("FMP_API_KEY")
+BASE_URL = "https://financialmodelingprep.com/api/v3"
 
 def fetch_most_active():
-    url = f"https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={API_KEY}"
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        return [
-            {
-                "symbol": stock.get("symbol"),
-                "price": stock.get("price"),
-                "changesPercentage": stock.get("changesPercentage"),
-                "volume": stock.get("volume")
-            }
-            for stock in data
-        ]
-    except Exception as e:
-        print(f"FMP error: {e}")
-        return []
+    """Fetch live most active stocks from FMP"""
+    url = f"{BASE_URL}/stock/actives?apikey={API_KEY}"
+    r = requests.get(url, timeout=10)
+    r.raise_for_status()
+    data = r.json()
+    return [
+        {
+            "symbol": stock.get("ticker"),
+            "price": stock.get("price"),
+            "change": stock.get("changes"),
+            "volume": stock.get("volume")
+        }
+        for stock in data.get("mostActiveStock", [])
+    ]
