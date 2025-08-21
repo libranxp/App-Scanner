@@ -1,48 +1,42 @@
-# backend/utils/telegram.py
 import requests
-import time
+import os
 
-def _post(token: str, method: str, payload: dict):
-    url = f"https://api.telegram.org/bot{token}/{method}"
-    r = requests.post(url, json=payload, timeout=20)
-    r.raise_for_status()
-    return r.json()
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+CHANNEL_CRYPTO = os.getenv("TELEGRAM_CRYPTO_CHANNEL_ID")
+CHANNEL_STOCKS = os.getenv("TELEGRAM_STOCKS_CHANNEL_ID")
 
-def send_message(token: str, chat_id: str, text: str):
+def send_alert(data):
+    ticker = data["ticker"]
+    asset_type = data["asset_type"]
+    channel_id = CHANNEL_CRYPTO if asset_type == "crypto" else CHANNEL_STOCKS
+
+    message = f"""
+🚨 *New Signal: ${ticker}*
+
+📈 *Price*: ${data['price']:.2f} | *Change*: {data['change']}%
+📊 *AI Score*: {data['ai_score']}/10 ({data['confidence']})
+🧠 *Reason*: _{data['narrative']}_
+📍 *Risk*: SL = ${data['risk']['stop_loss']:.2f} | TP = ${data['risk']['take_profit']:.2f} | Size = ${data['risk']['position_size']}
+
+📡 *Sentiment*: {data['sentiment']['score']} (Twitter, Reddit, News)
+📰 *Catalyst*: {data['catalyst']['headline'] or 'No headline'} + {data['catalyst']['tweet'] or 'No tweet'}
+
+🔗 [TradingView Chart](https://www.tradingview.com/symbols/{ticker})
+🔗 [News](https://newsapi.org/article)
+🔗 [Reddit](https://reddit.com/r/{'cryptocurrency' if asset_type == 'crypto' else 'stocks'})
+🔗 [Tweet](https://twitter.com/search?q={ticker})
+
+📅 *Time*: {data['timestamp']}
+    """
+
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True
+        "chat_id": channel_id,
+        "text": message,
+        "parse_mode": "Markdown"
     }
+
     try:
-        _post(token, "sendMessage", payload)
+        requests.post(url, json=payload)
     except Exception as e:
-        print(f"⚠️ Telegram send_message error: {e}")
-
-def send_signal(token: str, chat_id: str, s: dict):
-    """
-    s fields expected:
-      symbol, price, change_pct, ai_score, confidence, reason,
-      sl, tp, position_size, sentiment_label,
-      tradingview_url, news_url, reddit_url, tweet_url,
-      catalyst_url, time_bst
-    """
-    text = (
-        f"🚨 *New Signal: ${s['symbol']}*\n\n"
-        f"📈 *Price:* ${s['price']:.4f} | *Change:* {s['change_pct']:+.2f}%\n"
-        f"📊 *AI Score:* {s['ai_score']:.1f}/10 ({s['confidence']})\n"
-        f"🧠 *Reason:* {s['reason']}\n"
-        f"📍 *Risk:* SL = ${s['sl']:.4f} | TP = ${s['tp']:.4f} | Position Size: ${s['position_size']}\n"
-        f"📡 *Sentiment:* {s['sentiment_label']}\n"
-        f"📰 *Catalyst:* {s['catalyst_label']}\n\n"
-        f"🔗 [TradingView Chart]({s['tradingview_url']})\n"
-        f"🔗 [News Source]({s['news_url']})\n"
-        f"🔗 [Reddit Thread]({s['reddit_url']})\n"
-        f"🔗 [Tweet]({s['tweet_url']})\n\n"
-        f"📅 *Time:* {s['time_bst']}"
-    )
-    send_message(token, chat_id, text)
-
-def throttle(seconds: float):
-    time.sleep(seconds)
+        print(f"Telegram alert failed for {ticker}: {str(e)}")
