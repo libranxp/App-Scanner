@@ -1,19 +1,24 @@
+# backend/providers/fmp.py
 import os
 import requests
 
-API_KEY = os.getenv("FMP_API_KEY")
-BASE_URL = "https://financialmodelingprep.com/api/v3"
+API_KEY = os.getenv("FMP_API_KEY", "")
 
 def fetch_most_active():
-    """Fetch most active stocks from FMP API (live data only)."""
-    if not API_KEY:
-        raise ValueError("Missing FMP_API_KEY environment variable")
-
-    url = f"{BASE_URL}/stock_market/actives?apikey={API_KEY}"
-    resp = requests.get(url, timeout=15)
-    resp.raise_for_status()
-
-    data = resp.json()
-    if not isinstance(data, list):
+    url = f"https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={API_KEY}"
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return [
+            {
+                "symbol": stock.get("symbol"),
+                "price": stock.get("price"),
+                "changesPercentage": stock.get("changesPercentage"),
+                "volume": stock.get("volume")
+            }
+            for stock in data
+        ]
+    except Exception as e:
+        print(f"FMP error: {e}")
         return []
-    return data
